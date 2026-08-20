@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pusat Monitoring — ULPL Ende</title>
+<style>
+  :root{
+    --bg-0:#090D11; --bg-1:#111820; --bg-2:#161F28; --bg-3:#1C2732; --line:#233039; --line-soft:#1B2530;
+    --text-0:#F1F5F6; --text-1:#9FB0B8; --text-2:#5E717A;
+    --accent:#3FD9AE; --accent-dim:#2A8F73; --warn:#F0AC42; --danger:#F2593B; --white-st:#8592A0;
+    --mono:'IBM Plex Mono','SF Mono','Courier New',monospace;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;
+    --shadow-sm:0 1px 2px rgba(0,0,0,.3);
+    --shadow-md:0 8px 24px -8px rgba(0,0,0,.55);
+    --shadow-glow:0 0 0 1px rgba(63,217,174,.12),0 8px 28px -10px rgba(63,217,174,.18);
+    --radius:14px; --radius-sm:9px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;min-height:100vh;}
+  body{
+    background:
+      radial-gradient(1100px 620px at 12% -8%,rgba(63,217,174,.07),transparent 60%),
+      radial-gradient(900px 500px at 100% 0%,rgba(242,89,59,.05),transparent 55%),
+      var(--bg-0);
+    color:var(--text-0);font-family:var(--sans);padding:16px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1240px;margin:0 auto;}
+  ::selection{background:rgba(63,217,174,.25);}
+
+  /* ---- topbar ---- */
+  .topbar{
+    display:flex;justify-content:space-between;align-items:center;padding:13px 18px;
+    background:rgba(17,24,32,.82);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    border:1px solid var(--line);border-radius:var(--radius);margin-bottom:12px;flex-wrap:wrap;gap:10px;
+    position:sticky;top:8px;z-index:20;box-shadow:var(--shadow-sm);
+  }
+  .brand{display:flex;align-items:center;gap:12px;}
+  .brand-mark{
+    width:34px;height:34px;border-radius:9px;
+    background:linear-gradient(155deg,var(--bg-3),var(--bg-2));
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+    border:1px solid var(--line);box-shadow:inset 0 0 0 1px rgba(63,217,174,.06);
+  }
+  .brand-title{font-size:14.5px;font-weight:700;letter-spacing:-.01em;}
+  .brand-sub{font-size:10.5px;color:var(--text-2);font-family:var(--mono);text-transform:uppercase;letter-spacing:.7px;margin-top:1px;}
+  .storage-flag{font-family:var(--mono);font-size:10px;color:var(--text-2);display:flex;align-items:center;gap:7px;padding:5px 10px;background:var(--bg-2);border:1px solid var(--line);border-radius:99px;}
+  .storage-flag .dot{width:6px;height:6px;border-radius:50%;background:var(--text-2);}
+  .storage-flag .dot.ok{background:var(--accent);box-shadow:0 0 6px var(--accent);animation:pulse-soft 2.4s ease-in-out infinite;}
+  .storage-flag .dot.off{background:var(--warn);}
+
+  .storage-usage{
+    font-family:var(--mono);font-size:10px;color:var(--text-2);display:flex;align-items:center;gap:6px;
+    padding:5px 10px;background:var(--bg-2);border:1px solid var(--line);border-radius:99px;
+  }
+  .storage-usage-bar{width:52px;height:5px;border-radius:3px;background:var(--bg-3);overflow:hidden;border:1px solid var(--line);flex-shrink:0;}
+  .storage-usage-bar i{display:block;height:100%;border-radius:3px;background:var(--accent);transition:width .3s ease,background .3s ease;}
+  .storage-usage.warn .storage-usage-bar i{background:var(--warn);}
+  .storage-usage.danger .storage-usage-bar i{background:var(--danger);}
+  .storage-usage.warn{border-color:rgba(240,172,66,.4);color:var(--warn);}
+  .storage-usage.danger{border-color:rgba(242,89,59,.5);color:var(--danger);}
+
+  .storage-warn-banner{
+    display:none;position:relative;overflow:hidden;
+    background:linear-gradient(115deg,rgba(240,172,66,.16),rgba(240,172,66,.02) 55%),var(--bg-1);
+    border:1px solid var(--warn);border-radius:var(--radius);padding:14px 18px;margin-bottom:12px;
+  }
+  .storage-warn-banner.show{display:block;}
+  .storage-warn-banner.danger{background:linear-gradient(115deg,rgba(242,89,59,.18),rgba(242,89,59,.02) 55%),var(--bg-1);border-color:var(--danger);}
+  .storage-warn-title{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:6px;color:var(--warn);}
+  .storage-warn-banner.danger .storage-warn-title{color:var(--danger);}
+  .storage-warn-title .ping{width:8px;height:8px;border-radius:50%;background:var(--warn);box-shadow:0 0 8px var(--warn);animation:pulse-soft 1.6s ease-in-out infinite;flex-shrink:0;}
+  .storage-warn-banner.danger .storage-warn-title .ping{background:var(--danger);box-shadow:0 0 8px var(--danger);}
+  .storage-warn-text{font-size:12.5px;color:var(--text-1);line-height:1.5;}
+
+  @keyframes pulse-soft{0%,100%{opacity:1;}50%{opacity:.45;}}
+
+  /* ---- quake banner ---- */
+  .quake-banner{
+    position:relative;overflow:hidden;
+    background:linear-gradient(115deg,rgba(242,89,59,.16),rgba(242,89,59,.02) 55%),var(--bg-1);
+    border:1px solid rgba(242,89,59,.45);border-radius:var(--radius);padding:16px 20px;margin-bottom:12px;
+    box-shadow:0 8px 26px -14px rgba(242,89,59,.35);
+  }
+  .quake-banner-title{
+    display:flex;align-items:center;gap:8px;
+    font-family:var(--mono);font-size:11px;color:var(--danger);text-transform:uppercase;letter-spacing:1.1px;margin-bottom:10px;font-weight:600;
+  }
+  .quake-banner-title .ping{width:8px;height:8px;border-radius:50%;background:var(--danger);box-shadow:0 0 8px var(--danger);animation:pulse-soft 1.6s ease-in-out infinite;flex-shrink:0;}
+  .quake-rows{display:flex;gap:28px;flex-wrap:wrap;}
+  .quake-item{font-size:13px;color:var(--text-1);}
+  .quake-item b{color:var(--text-0);font-family:var(--mono);}
+
+  /* ---- stacked monitor layout: WRS large on top, Rekap compact below ---- */
+  .monitor-stack{display:flex;flex-direction:column;gap:12px;margin-bottom:12px;}
+
+  .panel{
+    background:var(--bg-1);border:1px solid var(--line);border-radius:var(--radius);
+    overflow:hidden;display:flex;flex-direction:column;
+    transition:box-shadow .25s ease,border-color .25s ease;
+  }
+  .panel:hover{box-shadow:var(--shadow-md);}
+  .panel-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line);gap:8px;flex-wrap:wrap;}
+  .panel-head-left{display:flex;align-items:center;gap:9px;}
+  .status-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 6px var(--accent);animation:pulse-soft 2.4s ease-in-out infinite;}
+  .panel-title{font-size:13px;font-weight:700;letter-spacing:-.01em;}
+  .panel-url{font-family:var(--mono);font-size:10px;color:var(--text-2);margin-top:1px;}
+  .panel-actions{display:flex;gap:6px;}
+  .panel-actions button,.panel-actions a{
+    background:var(--bg-2);color:var(--text-1);border:1px solid var(--line);border-radius:99px;
+    padding:6px 12px;font-family:var(--mono);font-size:11px;cursor:pointer;text-decoration:none;
+    transition:all .15s ease;
+  }
+  .panel-actions button:hover,.panel-actions a:hover{border-color:var(--accent);color:var(--accent);background:rgba(63,217,174,.08);}
+
+  /* WRS-BMKG: hero-sized panel */
+  .panel-wrs{box-shadow:var(--shadow-glow);}
+  .panel-wrs .panel-head{padding:14px 20px;background:linear-gradient(180deg,rgba(63,217,174,.05),transparent);}
+  .panel-wrs .panel-title{font-size:15px;}
+  .panel-wrs .status-dot{width:9px;height:9px;box-shadow:0 0 9px var(--accent);}
+  .frame-body{flex:1;min-height:640px;background:var(--bg-0);position:relative;}
+  .frame-body iframe{width:100%;height:100%;min-height:640px;border:none;display:block;}
+
+  /* Rekap: compact strip below */
+  .panel-rekap .panel-head{padding:9px 16px;}
+  .panel-rekap .panel-title{font-size:11.5px;}
+  .panel-rekap .status-dot{width:6px;height:6px;}
+  .rekap-body{padding:12px 16px;display:flex;flex-direction:column;gap:10px;}
+  .update-meta{display:flex;gap:16px;align-items:center;flex-wrap:wrap;}
+  .update-meta label{font-size:10px;color:var(--text-2);font-family:var(--mono);text-transform:uppercase;letter-spacing:.4px;}
+  .update-meta input{background:var(--bg-2);border:1px solid var(--line);color:var(--text-0);border-radius:6px;padding:5px 8px;font-family:var(--mono);font-size:11px;width:auto;}
+  .rekap-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+  .rekap-card{background:var(--bg-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;transition:border-color .2s ease;}
+  .rekap-card:hover{border-color:var(--line-soft);}
+  .rekap-card-title{font-size:9px;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px;font-family:var(--mono);margin-bottom:6px;}
+  .rekap-line{display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:1.5px 0;color:var(--text-1);gap:8px;}
+  .rekap-line .n{font-family:var(--mono);font-weight:700;color:var(--text-0);}
+  .rekap-bar{flex:1;height:3px;border-radius:2px;background:var(--line);overflow:hidden;margin:0 6px;}
+  .rekap-bar i{display:block;height:100%;border-radius:2px;background:currentColor;}
+  .rekap-footer-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+  .copy-btn{
+    background:var(--accent);color:#06201A;border:none;border-radius:99px;padding:8px 16px;
+    font-family:var(--mono);font-size:11px;font-weight:700;cursor:pointer;
+    box-shadow:0 4px 14px -4px rgba(63,217,174,.5);transition:transform .12s ease,box-shadow .12s ease;
+  }
+  .copy-btn:hover{transform:translateY(-1px);box-shadow:0 6px 18px -4px rgba(63,217,174,.6);}
+  .copy-btn:active{transform:translateY(0);}
+  .copy-hint{font-size:10.5px;color:var(--text-2);}
+
+  /* ---- board ---- */
+  .board{background:var(--bg-1);border:1px solid var(--line);border-radius:var(--radius);padding:6px 0;box-shadow:var(--shadow-sm);}
+  .group{border-bottom:1px solid var(--line-soft);}
+  .group:last-child{border-bottom:none;}
+  .group-head{display:flex;justify-content:space-between;align-items:center;padding:13px 18px;cursor:pointer;user-select:none;transition:background .15s ease;}
+  .group-head:hover{background:var(--bg-2);}
+  .group-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-1);}
+  .group-caret{font-family:var(--mono);color:var(--text-2);font-size:11px;transition:transform .2s ease;}
+  .group.collapsed .group-caret{transform:rotate(-90deg);}
+  .group-rows{padding:0 18px 10px;}
+  .group.collapsed .group-rows{display:none;}
+
+  .loc-row{display:grid;grid-template-columns:1fr auto auto auto auto minmax(120px,1fr) auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line-soft);}
+  .ket-input{background:var(--bg-2);border:1px solid var(--line);color:var(--text-0);border-radius:7px;padding:6px 9px;font-size:11.5px;font-family:var(--sans);width:100%;transition:border-color .15s ease;}
+  .ket-input::placeholder{color:var(--text-2);}
+  .ket-input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 1px rgba(63,217,174,.25);}
+  .map-btn{
+    font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-radius:7px;padding:6px 9px;
+    cursor:pointer;min-width:56px;text-align:center;background:var(--bg-2);color:var(--text-1);
+    transition:transform .1s ease,border-color .15s ease,color .15s ease;text-decoration:none;
+    display:flex;flex-direction:column;align-items:center;gap:1px;
+  }
+  .map-btn .lbl{font-size:9px;}
+  .map-btn:not(.disabled):hover{transform:translateY(-1px);border-color:var(--accent);color:var(--accent);background:rgba(63,217,174,.08);}
+  .map-btn.disabled{opacity:0.25;cursor:default;pointer-events:none;}
+  .loc-row:last-child{border-bottom:none;}
+  .loc-name{font-size:13px;color:var(--text-0);}
+  .ev-wrap{position:relative;display:inline-block;}
+  .ev-btn{
+    font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-radius:7px;padding:6px 9px;
+    cursor:pointer;min-width:64px;text-align:center;background:var(--bg-2);color:var(--text-2);
+    transition:transform .1s ease,border-color .15s ease,color .15s ease;position:relative;display:block;
+  }
+  .ev-btn:hover{transform:translateY(-1px);border-color:var(--text-1);color:var(--text-1);}
+  .ev-btn.has-photo{border-color:var(--accent);color:var(--accent);background:rgba(63,217,174,.07);}
+  .ev-btn .ev-count{
+    position:absolute;top:-6px;left:-6px;background:var(--accent);color:#06201A;
+    font-size:9px;font-weight:800;border-radius:99px;min-width:15px;height:15px;line-height:15px;padding:0 3px;
+  }
+  .ev-add{
+    position:absolute;bottom:-7px;right:-7px;width:19px;height:19px;border-radius:50%;
+    background:var(--accent);color:#06201A;border:2px solid var(--bg-1);
+    font-size:12px;line-height:14px;font-weight:800;cursor:pointer;padding:0;
+    display:flex;align-items:center;justify-content:center;transition:transform .1s ease;
+  }
+  .ev-add:hover{transform:scale(1.12);}
+  .ev-thumb{width:26px;height:26px;border-radius:5px;object-fit:cover;display:block;margin:0 auto;}
+  .ev-input{display:none;}
+  .st-btn{
+    font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-radius:7px;padding:6px 9px;
+    cursor:pointer;min-width:112px;text-align:left;background:var(--bg-2);color:var(--text-1);
+    transition:transform .1s ease,border-color .15s ease,box-shadow .15s ease;
+  }
+  .st-btn:hover:not(.disabled){transform:translateY(-1px);}
+  .st-btn .lbl{margin-left:4px;}
+  .st-btn.st-green{border-color:var(--accent);color:var(--accent);box-shadow:0 0 0 1px rgba(63,217,174,.08) inset;}
+  .st-btn.st-yellow{border-color:var(--warn);color:var(--warn);box-shadow:0 0 0 1px rgba(240,172,66,.08) inset;}
+  .st-btn.st-red{border-color:var(--danger);color:var(--danger);box-shadow:0 0 0 1px rgba(242,89,59,.08) inset;}
+  .st-btn.st-white{border-color:var(--white-st);color:var(--white-st);}
+  .st-btn.disabled{opacity:0.25;cursor:default;pointer-events:none;}
+
+  .col-head-row{display:grid;grid-template-columns:1fr auto auto auto auto minmax(120px,1fr) auto;gap:10px;padding:6px 0 4px;}
+  .col-head{font-family:var(--mono);font-size:9px;color:var(--text-2);text-transform:uppercase;letter-spacing:0.5px;min-width:112px;text-align:left;}
+  .col-head.ev-head{min-width:64px;text-align:center;}
+
+  .footer{margin-top:12px;padding:10px 16px;font-size:11px;color:var(--text-2);text-align:center;line-height:1.5;}
+
+  /* ---- photo evidence lightbox ---- */
+  .lightbox{
+    position:fixed;inset:0;background:rgba(4,7,9,.86);backdrop-filter:blur(4px);
+    display:none;align-items:center;justify-content:center;z-index:100;padding:24px;
+  }
+  .lightbox.open{display:flex;}
+  .lightbox-inner{max-width:min(720px,92vw);max-height:88vh;display:flex;flex-direction:column;gap:12px;}
+  .lightbox-head{display:flex;justify-content:space-between;align-items:center;gap:12px;color:var(--text-1);font-family:var(--mono);font-size:12px;}
+  .lightbox-head b{color:var(--text-0);font-family:var(--sans);font-size:14px;}
+  .lightbox-close{background:var(--bg-2);border:1px solid var(--line);color:var(--text-1);border-radius:99px;padding:6px 13px;cursor:pointer;font-family:var(--mono);font-size:11px;}
+  .lightbox-close:hover{border-color:var(--accent);color:var(--accent);}
+  .lightbox-strip{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;}
+  .lightbox-strip img{height:74px;width:74px;object-fit:cover;border-radius:8px;border:2px solid transparent;cursor:pointer;flex-shrink:0;}
+  .lightbox-strip img.active{border-color:var(--accent);}
+  .lightbox-main{position:relative;background:var(--bg-1);border-radius:12px;border:1px solid var(--line);overflow:hidden;display:flex;align-items:center;justify-content:center;}
+  .lightbox-main img{max-width:100%;max-height:60vh;display:block;}
+  .lightbox-remove{
+    background:rgba(242,89,59,.14);border:1px solid var(--danger);color:var(--danger);
+    border-radius:99px;padding:7px 14px;font-family:var(--mono);font-size:11px;cursor:pointer;
+  }
+  .lightbox-remove:hover{background:rgba(242,89,59,.24);}
+  .lightbox-actions{display:flex;gap:8px;flex-wrap:wrap;}
+  .lightbox-add{
+    background:rgba(63,217,174,.14);border:1px solid var(--accent);color:var(--accent);
+    border-radius:99px;padding:7px 14px;font-family:var(--mono);font-size:11px;cursor:pointer;
+  }
+  .lightbox-add:hover{background:rgba(63,217,174,.24);}
+  @media (max-width:640px){
+    .loc-row,.col-head-row{grid-template-columns:1fr;gap:4px;}
+    .st-btn,.ev-btn{width:100%;}
+    .rekap-grid{grid-template-columns:1fr;}
+    .frame-body,.frame-body iframe{min-height:440px;}
+    .lightbox-main img{max-height:44vh;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-mark"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4CC9A8" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></div>
+      <div>
+        <div class="brand-title">Pusat Monitoring</div>
+        <div class="brand-sub">ULPL Ende · WRS-BMKG &amp; Update Kondisi Kantor</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <div class="storage-flag" id="storageFlag" style="display:none;"><span class="dot" id="storageDot"></span><span id="storageText">Memeriksa penyimpanan...</span></div>
+      <div class="storage-usage" id="storageUsage" style="display:none;">
+        <span class="storage-usage-bar" id="storageUsageBarWrap"><i id="storageUsageBar" style="width:0%"></i></span>
+        <span id="storageUsageText">0 MB</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="storage-warn-banner" id="storageWarnBanner">
+    <div class="storage-warn-title"><span class="ping"></span>Peringatan Penyimpanan</div>
+    <div class="storage-warn-text" id="storageWarnText"></div>
+  </div>
+
+  <div class="quake-banner">
+    <div class="quake-banner-title"><span class="ping"></span>Info Gempa — UIK Dwipantara / UPK Flores</div>
+    <div class="quake-rows">
+      <div class="quake-item">Gempa utama: <b>M7,0</b>, kedalaman 10 km, pusat 38 km Timur Laut Mbay, Nagekeo</div>
+      <div class="quake-item">Gempa susulan: <b>M6,2</b>, kedalaman 10 km, pusat 46 km Timur Laut Labuan Bajo</div>
+    </div>
+  </div>
+
+  <div class="monitor-stack">
+    <div class="panel panel-wrs">
+      <div class="panel-head">
+        <div class="panel-head-left">
+          <span class="status-dot"></span>
+          <div>
+            <div class="panel-title">WRS-BMKG — Warning Receiver System</div>
+            <div class="panel-url">inatews.bmkg.go.id/wrs</div>
+          </div>
+        </div>
+        <div class="panel-actions">
+          <button id="reloadWrs">Muat ulang</button>
+          <a href="https://inatews.bmkg.go.id/wrs/index.html" target="_blank" rel="noopener">Buka di tab baru ↗</a>
+        </div>
+      </div>
+      <div class="frame-body"><iframe id="frameWrs" src="https://inatews.bmkg.go.id/wrs/index.html" title="WRS BMKG"></iframe></div>
+    </div>
+
+    <div class="panel panel-rekap">
+      <div class="panel-head">
+        <div class="panel-head-left">
+          <span class="status-dot"></span>
+          <div>
+            <div class="panel-title">Rekap Kondisi Personel &amp; Aset</div>
+            <div class="panel-url">otomatis dari papan status di bawah</div>
+          </div>
+        </div>
+      </div>
+      <div class="rekap-body">
+        <div class="update-meta">
+          <label>Update pukul</label>
+          <input type="text" id="updateTime" value="07.35 WITA">
+          <label>Tanggal</label>
+          <input type="text" id="updateDate" value="Sabtu, 15 Agustus 2026">
+        </div>
+        <div class="rekap-grid" id="rekapGrid"></div>
+        <div class="rekap-footer-row">
+          <button class="copy-btn" id="copyReport">Salin sebagai teks laporan</button>
+          <div class="copy-hint">Format siap kirim — sama seperti broadcast WhatsApp K3 &amp; Keamanan.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="board" id="board"></div>
+
+</div>
+
+<div class="lightbox" id="lightbox">
+  <div class="lightbox-inner">
+    <div class="lightbox-head">
+      <b id="lbTitle">Lokasi</b>
+      <button class="lightbox-close" id="lbClose">Tutup ✕</button>
+    </div>
+    <div class="lightbox-main"><img id="lbMainImg" src="" alt="Foto eviden"></div>
+    <div class="lightbox-strip" id="lbStrip"></div>
+    <div class="lightbox-actions">
+      <button class="lightbox-add" id="lbAdd">+ Tambah Foto</button>
+      <button class="lightbox-remove" id="lbRemove">Hapus foto ini</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var STATUS_META = {
+    green:{emoji:'🟢',label:'Aman/Normal',cls:'st-green'},
+    yellow:{emoji:'🟡',label:'Pemeriksaan',cls:'st-yellow'},
+    red:{emoji:'🔴',label:'Terdampak',cls:'st-red'},
+    white:{emoji:'⚪',label:'Belum konfirmasi',cls:'st-white'}
+  };
+  var CYCLE = ['green','yellow','red','white'];
+
+  function escapeHtml(str){
+    return String(str == null ? '' : str)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
+  var DEFAULT_LOCATIONS = [
+    {id:1,name:'Kantor UPK Flores',group:'UPK Flores',hasOps:false,p:'green',a:'green',o:null,koor:'-8.596268,122.190287'},
+    {id:2,name:'Gudang & Persediaan UPK Flores',group:'UPK Flores',hasOps:false,p:'green',a:'green',o:null,koor:'-8.596268,122.190287'},
+
+    {id:3,name:'PLTMG Maumere',group:'Pembangkit Besar',hasOps:true,p:'green',a:'green',o:'green'},
+    {id:4,name:'PLTMG Rangko',group:'Pembangkit Besar',hasOps:true,p:'green',a:'yellow',o:'yellow'},
+    {id:5,name:'PLTU Ropa',group:'Pembangkit Besar',hasOps:true,p:'white',a:'white',o:'white'},
+
+    {id:6,name:'Kantor ULPLTD Ende',group:'ULPLTD Ende',hasOps:false,p:'green',a:'yellow',o:null,koor:'-8.845069,121.671426'},
+    {id:7,name:'Gudang & Persediaan Bahan Ende',group:'ULPLTD Ende',hasOps:false,p:'green',a:'yellow',o:null,koor:'-8.845069,121.671426'},
+    {id:8,name:'PLTD Golo Bilas',group:'ULPLTD Ende',hasOps:true,p:'green',a:'green',o:'white',koor:'-8.540687,119.886400'},
+    {id:9,name:'PLTD Komodo',group:'ULPLTD Ende',hasOps:true,p:'green',a:'green',o:'green',koor:'-8.587969,119.494560'},
+    {id:10,name:'PLTD Mautapaga',group:'ULPLTD Ende',hasOps:true,p:'green',a:'white',o:'white',koor:'-8.845069,121.671426'},
+    {id:11,name:'PLTD Rinca',group:'ULPLTD Ende',hasOps:true,p:'green',a:'green',o:'green',koor:'-8.619927,119.781700'},
+    {id:12,name:'PLTD Ndoriwoy',group:'ULPLTD Ende',hasOps:true,p:'green',a:'green',o:'green',koor:'-8.883528,121.510830'},
+    {id:13,name:'PLTD Pota',group:'ULPLTD Ende',hasOps:true,p:'white',a:'white',o:'white',koor:'-8.344762,120.756390'},
+    {id:14,name:'PLTD Reo',group:'ULPLTD Ende',hasOps:true,p:'green',a:'red',o:'white',koor:'-8.310128,120.484270'},
+    {id:15,name:'PLTMH Ogi',group:'ULPLTD Ende',hasOps:true,p:'green',a:'green',o:'white',koor:'-8.773779,121.010480'},
+    {id:16,name:'PLTMH Waigarit',group:'ULPLTD Ende',hasOps:true,p:'green',a:'green',o:'white',koor:'-8.588125,120.432850'},
+    {id:17,name:'PLTS Batu Tiga',group:'ULPLTD Ende',hasOps:true,p:'white',a:'white',o:'white',koor:'-8.385603,120.046290'},
+    {id:18,name:'PLTS Messah',group:'ULPLTD Ende',hasOps:true,p:'green',a:'yellow',o:'white',koor:'-8.526208,119.745390'},
+    {id:19,name:'PLTS Papagarang',group:'ULPLTD Ende',hasOps:true,p:'green',a:'green',o:'green',koor:'-8.571589,119.712550'},
+    {id:20,name:'PLTS Seraya',group:'ULPLTD Ende',hasOps:true,p:'white',a:'white',o:'white',koor:'-8.394083,119.857320'},
+
+    {id:21,name:'Kantor ULPLTD Maumere',group:'ULPLTD Maumere',hasOps:false,p:'green',a:'green',o:null,koor:'-8.596804,122.191336'},
+    {id:22,name:'Gudang & Persediaan Bahan Maumere',group:'ULPLTD Maumere',hasOps:false,p:'green',a:'green',o:null,koor:'-8.596804,122.191336'},
+    {id:23,name:'PLTD Lamahora',group:'ULPLTD Maumere',hasOps:true,p:'green',a:'green',o:'green',koor:'-8.358697,123.467992'},
+    {id:24,name:'PLTD Menanga',group:'ULPLTD Maumere',hasOps:true,p:'green',a:'green',o:'green',koor:'-8.439379,123.085158'},
+    {id:25,name:'PLTD Omesuri',group:'ULPLTD Maumere',hasOps:true,p:'green',a:'green',o:'green'},
+    {id:26,name:'PLTD Terong',group:'ULPLTD Maumere',hasOps:true,p:'green',a:'green',o:'green',koor:'-8.393238,123.121829'},
+    {id:27,name:'PLTD Waiwerang',group:'ULPLTD Maumere',hasOps:true,p:'green',a:'green',o:'green'},
+    {id:28,name:'PLTD Wolomarang',group:'ULPLTD Maumere',hasOps:true,p:'green',a:'green',o:'green'},
+    {id:29,name:'PLTD Pemana',group:'ULPLTD Maumere',hasOps:true,p:'green',a:'green',o:'green',koor:'-8.351940,122.319288'},
+    {id:30,name:'PLTS Ile Ape',group:'ULPLTD Maumere',hasOps:true,p:'green',a:'green',o:'green',koor:'-8.318843,123.464602'},
+    {id:31,name:'PLTS Kalelu',group:'ULPLTD Maumere',hasOps:true,p:'green',a:'green',o:'green',koor:'-8.530240,122.938022'},
+    {id:32,name:'PLTS Kojadoi',group:'ULPLTD Maumere',hasOps:true,p:'green',a:'green',o:'green',koor:'-8.453058,122.443788'},
+    {id:33,name:'PLTS Palue',group:'ULPLTD Maumere',hasOps:true,p:'green',a:'red',o:'red',koor:'-8.307054,121.705906'},
+    {id:34,name:'PLTS Parumaan',group:'ULPLTD Maumere',hasOps:true,p:'green',a:'green',o:'green',koor:'-8.488024,122.393209'},
+
+    {id:35,name:'Kantor ULPLTD Mataloko',group:'ULPLTP Mataloko',hasOps:false,p:'white',a:'white',o:null},
+    {id:36,name:'Gudang & Persediaan Bahan Mataloko',group:'ULPLTP Mataloko',hasOps:false,p:'white',a:'white',o:null},
+    {id:37,name:'PLTM Ndungga',group:'ULPLTP Mataloko',hasOps:true,p:'white',a:'white',o:'white',koor:'-8.774907,121.668994'},
+    {id:38,name:'PLTP Mataloko',group:'ULPLTP Mataloko',hasOps:true,p:'white',a:'white',o:'white',koor:'-8.833208,121.061234'},
+    {id:39,name:'PLTP Ulumbu',group:'ULPLTP Mataloko',hasOps:true,p:'white',a:'white',o:'white',koor:'-8.726219,120.435020'},
+    {id:40,name:'PLTS Golo Lebo',group:'ULPLTP Mataloko',hasOps:true,p:'white',a:'white',o:'white',koor:'-8.459787,120.821780'},
+    {id:41,name:'PLTS Golo Munde',group:'ULPLTP Mataloko',hasOps:true,p:'white',a:'white',o:'white',koor:'-8.519551,120.804397'},
+    {id:42,name:'PLTS Gunung',group:'ULPLTP Mataloko',hasOps:true,p:'white',a:'white',o:'white',koor:'-8.757782,120.787573'},
+    {id:43,name:'PLTS Kebirangga Selatan',group:'ULPLTP Mataloko',hasOps:true,p:'white',a:'white',o:'white',koor:'-8.664952,121.597408'},
+    {id:44,name:'PLTS Kekasewa',group:'ULPLTP Mataloko',hasOps:true,p:'white',a:'white',o:'white',koor:'-8.878231,121.779531'},
+    {id:45,name:'PLTS Legur Lai',group:'ULPLTP Mataloko',hasOps:true,p:'white',a:'white',o:'white',koor:'-8.454694,120.846746'},
+    {id:46,name:'PLTS Mbakung',group:'ULPLTP Mataloko',hasOps:true,p:'white',a:'white',o:'white',koor:'-8.349365,120.252861'},
+    {id:47,name:'PLTS Nanga Meje',group:'ULPLTP Mataloko',hasOps:true,p:'white',a:'white',o:'white',koor:'-8.686181,120.836067'},
+    {id:48,name:'PLTS Nangabere',group:'ULPLTP Mataloko',hasOps:true,p:'white',a:'white',o:'white',koor:'-8.818590,119.962078'},
+    {id:49,name:'PLTS Nuca Molas',group:'ULPLTP Mataloko',hasOps:true,p:'white',a:'white',o:'white',koor:'-8.878463,120.301726'},
+    {id:50,name:'PLTS Rana Kulan',group:'ULPLTP Mataloko',hasOps:true,p:'white',a:'white',o:'white',koor:'-8.460636,120.698548'},
+    {id:51,name:'PLTS Watu Mute',group:'ULPLTP Mataloko',hasOps:true,p:'white',a:'white',o:'white',koor:'-8.711188,120.789954'},
+    {id:52,name:'PLTS Wontong',group:'ULPLTP Mataloko',hasOps:true,p:'white',a:'white',o:'white',koor:'-8.450053,120.275628'}
+  ];
+
+  var GROUP_ORDER = ['UPK Flores','Pembangkit Besar','ULPLTD Ende','ULPLTD Maumere','ULPLTP Mataloko'];
+  var STORAGE_KEY = 'ulpl_kondisi_kantor_v1';
+  var collapsedGroups = {};
+
+  function testStorage(){
+    try{
+      var t='__t__'; localStorage.setItem(t,'1'); localStorage.removeItem(t);
+      return true;
+    }catch(e){ return false; }
+  }
+  var storageOk = testStorage();
+  var storageDot = document.getElementById('storageDot');
+  var storageText = document.getElementById('storageText');
+
+  /* ===================== FOTO EVIDEN — IndexedDB ===================== */
+  /* Foto disimpan terpisah dari status (di IndexedDB, bukan localStorage) supaya
+     kapasitasnya jauh lebih besar (ratusan MB - beberapa GB, tergantung perangkat)
+     dibanding batas ~5-10MB milik localStorage. */
+  var PHOTO_DB_NAME = 'ulpl_monitoring_photos_v1';
+  var PHOTO_STORE = 'photos';
+  var photoDbPromise = null;
+  var photosCache = {}; // locId -> [{photoId, dataUrl}]
+  var idbAvailable = (typeof indexedDB !== 'undefined');
+
+  function openPhotoDB(){
+    if(!idbAvailable) return Promise.reject(new Error('IndexedDB tidak tersedia'));
+    if(photoDbPromise) return photoDbPromise;
+    photoDbPromise = new Promise(function(resolve, reject){
+      var req = indexedDB.open(PHOTO_DB_NAME, 1);
+      req.onupgradeneeded = function(e){
+        var db = e.target.result;
+        if(!db.objectStoreNames.contains(PHOTO_STORE)){
+          var store = db.createObjectStore(PHOTO_STORE, {keyPath:'photoId', autoIncrement:true});
+          store.createIndex('locId', 'locId', {unique:false});
+        }
+      };
+      req.onsuccess = function(e){ resolve(e.target.result); };
+      req.onerror = function(e){ reject(e.target.error || new Error('Gagal membuka IndexedDB')); };
+    });
+    return photoDbPromise;
+  }
+
+  function loadAllPhotosIntoCache(){
+    return openPhotoDB().then(function(db){
+      return new Promise(function(resolve, reject){
+        var tx = db.transaction(PHOTO_STORE, 'readonly');
+        var store = tx.objectStore(PHOTO_STORE);
+        var req = store.openCursor();
+        var cache = {};
+        req.onsuccess = function(e){
+          var cursor = e.target.result;
+          if(cursor){
+            var rec = cursor.value;
+            if(!cache[rec.locId]) cache[rec.locId] = [];
+            cache[rec.locId].push({photoId:rec.photoId, dataUrl:rec.dataUrl});
+            cursor.continue();
+          } else {
+            resolve(cache);
+          }
+        };
+        req.onerror = function(e){ reject(e.target.error); };
+      });
+    });
+  }
+
+  function dbAddPhoto(locId, dataUrl){
+    return openPhotoDB().then(function(db){
+      return new Promise(function(resolve, reject){
+        var tx = db.transaction(PHOTO_STORE, 'readwrite');
+        var store = tx.objectStore(PHOTO_STORE);
+        var req = store.add({locId:locId, dataUrl:dataUrl, ts:Date.now()});
+        req.onsuccess = function(e){ resolve(e.target.result); };
+        req.onerror = function(e){ reject(e.target.error); };
+      });
+    });
+  }
+
+  function dbDeletePhoto(photoId){
+    return openPhotoDB().then(function(db){
+      return new Promise(function(resolve, reject){
+        var tx = db.transaction(PHOTO_STORE, 'readwrite');
+        var store = tx.objectStore(PHOTO_STORE);
+        var req = store.delete(photoId);
+        req.onsuccess = function(){ resolve(); };
+        req.onerror = function(e){ reject(e.target.error); };
+      });
+    });
+  }
+
+  function getLocPhotos(locId){
+    return photosCache[locId] || [];
+  }
+
+  /* ===================== STATUS PERSONEL/ASET — localStorage ===================== */
+  if(storageOk){
+    storageDot.classList.add('ok');
+    storageText.textContent = 'Tersimpan otomatis di peramban ini';
+  } else {
+    storageDot.classList.add('off');
+    storageText.textContent = 'Penyimpanan lokal tidak tersedia — data hanya bertahan selama sesi ini, gunakan tombol salin teks untuk menyimpan';
+  }
+
+  function loadLocations(){
+    if(storageOk){
+      try{
+        var raw = localStorage.getItem(STORAGE_KEY);
+        if(raw) return JSON.parse(raw);
+      }catch(e){}
+    }
+    return JSON.parse(JSON.stringify(DEFAULT_LOCATIONS));
+  }
+
+  function saveLocations(){
+    if(!storageOk) return;
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(LOCATIONS)); }catch(e){}
+  }
+
+  var LOCATIONS = loadLocations();
+  LOCATIONS.forEach(function(l){ if(typeof l.ket !== 'string') l.ket = ''; });
+
+  /* One-time migration: versi lama menyimpan foto langsung di dalam loc.photos
+     (base64) di localStorage. Pindahkan ke IndexedDB lalu bersihkan dari localStorage. */
+  function migrateOldPhotosIfNeeded(){
+    var needsMigration = LOCATIONS.some(function(l){ return l.photos && l.photos.length; });
+    if(!needsMigration || !idbAvailable) return Promise.resolve();
+    var jobs = [];
+    LOCATIONS.forEach(function(l){
+      if(l.photos && l.photos.length){
+        l.photos.forEach(function(dataUrl){
+          jobs.push(dbAddPhoto(l.id, dataUrl));
+        });
+      }
+    });
+    return Promise.all(jobs).then(function(){
+      LOCATIONS.forEach(function(l){ delete l.photos; });
+      saveLocations();
+    });
+  }
+
+  /* ===================== INDIKATOR KAPASITAS PENYIMPANAN ===================== */
+  function formatBytes(bytes){
+    if(bytes < 1024*1024) return Math.max(0, Math.round(bytes/1024)) + ' KB';
+    var mb = bytes / (1024*1024);
+    if(mb < 1024) return (mb < 10 ? mb.toFixed(1) : Math.round(mb)) + ' MB';
+    return (mb/1024).toFixed(2) + ' GB';
+  }
+
+  function updateStorageUsageUI(){
+    if(navigator.storage && navigator.storage.estimate){
+      navigator.storage.estimate().then(function(est){
+        var used = est.usage || 0;
+        var quota = est.quota || (5*1024*1024);
+        renderStorageUsage(used, quota, true);
+      }).catch(function(){
+        renderStorageUsage(0, 5*1024*1024, false);
+      });
+    } else {
+      renderStorageUsage(0, 5*1024*1024, false);
+    }
+  }
+
+  function renderStorageUsage(used, quota, precise){
+    var pct = quota ? Math.min(100, Math.round((used/quota)*100)) : 0;
+    var textEl = document.getElementById('storageUsageText');
+    var barEl = document.getElementById('storageUsageBar');
+    var usageEl = document.getElementById('storageUsage');
+    if(textEl){
+      textEl.textContent = precise
+        ? (formatBytes(used) + ' / ' + formatBytes(quota) + ' (' + pct + '%)')
+        : 'Estimasi kapasitas tidak tersedia di peramban ini';
+    }
+    if(barEl) barEl.style.width = pct + '%';
+    if(usageEl){
+      usageEl.classList.remove('warn','danger');
+      if(pct >= 85) usageEl.classList.add('danger');
+      else if(pct >= 60) usageEl.classList.add('warn');
+    }
+    updateStorageWarnBanner(pct, false);
+  }
+
+  function updateStorageWarnBanner(pct, saveFailed){
+    var banner = document.getElementById('storageWarnBanner');
+    var textEl = document.getElementById('storageWarnText');
+    if(!banner || !textEl) return;
+    if(saveFailed){
+      banner.classList.add('show','danger');
+      textEl.textContent = 'PENYIMPANAN PENUH — data/foto terbaru GAGAL tersimpan otomatis! Segera tekan tombol "Salin sebagai teks laporan" untuk mengamankan update ini, lalu hapus beberapa foto eviden lama agar perubahan berikutnya bisa tersimpan.';
+      return;
+    }
+    if(pct >= 90){
+      banner.classList.add('show','danger');
+      textEl.textContent = 'Penyimpanan lokal hampir penuh (' + pct + '%). Foto baru berisiko gagal tersimpan. Segera salin laporan dan hapus beberapa foto eviden yang tidak diperlukan.';
+    } else if(pct >= 70){
+      banner.classList.add('show');
+      banner.classList.remove('danger');
+      textEl.textContent = 'Penyimpanan lokal sudah terpakai ' + pct + '%. Pertimbangkan menghapus foto lama yang sudah tidak relevan agar tetap ada ruang untuk update berikutnya.';
+    } else {
+      banner.classList.remove('show','danger');
+    }
+  }
+
+  function cycleStatus(loc, field){
+    var cur = loc[field];
+    var idx = CYCLE.indexOf(cur);
+    loc[field] = CYCLE[(idx+1) % CYCLE.length];
+    saveLocations();
+    render();
+  }
+
+  function stBtn(loc, field, label){
+    var val = loc[field];
+    if(val === null){
+      return '<button class="st-btn disabled">— ' + label + '</button>';
+    }
+    var meta = STATUS_META[val];
+    return '<button class="st-btn ' + meta.cls + '" data-id="' + loc.id + '" data-field="' + field + '">' + meta.emoji + '<span class="lbl">' + label + '</span></button>';
+  }
+
+  function renderBoard(){
+    var board = document.getElementById('board');
+    var html = '';
+    GROUP_ORDER.forEach(function(g){
+      var items = LOCATIONS.filter(function(l){ return l.group === g; });
+      if(!items.length) return;
+      var collapsed = collapsedGroups[g] ? ' collapsed' : '';
+      html += '<div class="group' + collapsed + '" data-group="' + g + '">';
+      html += '<div class="group-head" data-toggle="' + g + '"><span class="group-title">' + g + ' (' + items.length + ' lokasi)</span><span class="group-caret">▾</span></div>';
+      html += '<div class="group-rows">';
+      html += '<div class="col-head-row"><span></span><span class="col-head">Personel</span><span class="col-head">Aset</span><span class="col-head">Operasi</span><span class="col-head ev-head">Eviden</span><span class="col-head">Keterangan</span><span class="col-head">Lokasi</span></div>';
+      items.forEach(function(loc){
+        html += '<div class="loc-row">';
+        html += '<span class="loc-name">' + loc.name + '</span>';
+        html += stBtn(loc,'p','Personel');
+        html += stBtn(loc,'a','Aset');
+        html += loc.hasOps ? stBtn(loc,'o','Operasi') : '<button class="st-btn disabled">— Operasi</button>';
+        html += evBtn(loc);
+        html += ketInput(loc);
+        html += mapBtn(loc);
+        html += '</div>';
+      });
+      html += '</div></div>';
+    });
+    board.innerHTML = html;
+
+    board.querySelectorAll('.st-btn[data-id]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var id = parseInt(btn.getAttribute('data-id'),10);
+        var field = btn.getAttribute('data-field');
+        var loc = LOCATIONS.find(function(l){ return l.id === id; });
+        if(loc) cycleStatus(loc, field);
+      });
+    });
+    board.querySelectorAll('.group-head').forEach(function(head){
+      head.addEventListener('click', function(){
+        var g = head.getAttribute('data-toggle');
+        collapsedGroups[g] = !collapsedGroups[g];
+        renderBoard();
+      });
+    });
+    // thumbnail / "no photo yet" button -> view existing photos, or add first photo
+    board.querySelectorAll('.ev-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var id = parseInt(btn.getAttribute('data-id'),10);
+        var loc = LOCATIONS.find(function(l){ return l.id === id; });
+        if(!loc) return;
+        var photos = getLocPhotos(id);
+        if(photos.length){
+          openLightbox(loc, 0);
+        } else {
+          document.getElementById('evInput_' + id).click();
+        }
+      });
+    });
+    // small "+" badge -> always adds more photos, doesn't open lightbox
+    board.querySelectorAll('.ev-add').forEach(function(btn){
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
+        var id = parseInt(btn.getAttribute('data-id'),10);
+        document.getElementById('evInput_' + id).click();
+      });
+    });
+    board.querySelectorAll('.ev-input').forEach(function(inp){
+      inp.addEventListener('change', function(e){
+        var id = parseInt(inp.getAttribute('data-id'),10);
+        var loc = LOCATIONS.find(function(l){ return l.id === id; });
+        var files = e.target.files;
+        if(!loc || !files || !files.length) return;
+        addPhotos(loc, files);
+        inp.value = '';
+      });
+    });
+    // kolom Keterangan -> simpan otomatis tanpa render ulang (supaya fokus ketik tidak hilang)
+    board.querySelectorAll('.ket-input').forEach(function(inp){
+      inp.addEventListener('change', function(){
+        var id = parseInt(inp.getAttribute('data-id'),10);
+        var loc = LOCATIONS.find(function(l){ return l.id === id; });
+        if(!loc) return;
+        loc.ket = inp.value;
+        saveLocations();
+      });
+    });
+  }
+
+  function ketInput(loc){
+    return '<input type="text" class="ket-input" data-id="' + loc.id + '" placeholder="Tambah keterangan..." value="' + escapeHtml(loc.ket) + '">';
+  }
+
+  function mapBtn(loc){
+    if(loc.koor){
+      var url = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(loc.koor);
+      return '<a class="map-btn" href="' + url + '" target="_blank" rel="noopener noreferrer" title="Buka lokasi di Google Maps">📍<span class="lbl">Peta</span></a>';
+    }
+    return '<button class="map-btn disabled" title="Titik koordinat belum tersedia">📍<span class="lbl">—</span></button>';
+  }
+
+  function evBtn(loc){
+    var photos = getLocPhotos(loc.id);
+    var n = photos.length;
+    var input = '<input class="ev-input" type="file" accept="image/*" multiple id="evInput_' + loc.id + '" data-id="' + loc.id + '">';
+    if(n > 0){
+      return '<div class="ev-wrap">' + input +
+        '<button class="ev-btn has-photo" data-id="' + loc.id + '"><img class="ev-thumb" src="' + photos[0].dataUrl + '" alt="eviden"></button>' +
+        '<span class="ev-count">' + n + '</span>' +
+        '<button class="ev-add" data-id="' + loc.id + '" title="Tambah foto lagi">+</button>' +
+        '</div>';
+    }
+    return '<div class="ev-wrap">' + input +
+      '<button class="ev-btn" data-id="' + loc.id + '">📷<span class="lbl" style="display:block;font-size:9px;">Tambah</span></button>' +
+      '</div>';
+  }
+
+  function resizeImage(file, maxDim, quality){
+    return new Promise(function(resolve){
+      var reader = new FileReader();
+      reader.onload = function(e){
+        var img = new Image();
+        img.onload = function(){
+          var w = img.width, h = img.height;
+          if(w > h && w > maxDim){ h = Math.round(h * (maxDim / w)); w = maxDim; }
+          else if(h > maxDim){ w = Math.round(w * (maxDim / h)); h = maxDim; }
+          var canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = function(){ resolve(null); };
+        img.src = e.target.result;
+      };
+      reader.onerror = function(){ resolve(null); };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function addPhotos(loc, fileList){
+    var files = Array.prototype.slice.call(fileList);
+    Promise.all(files.map(function(f){ return resizeImage(f, 900, 0.62); }))
+      .then(function(results){
+        var valid = results.filter(function(r){ return !!r; });
+        return Promise.all(valid.map(function(dataUrl){
+          return dbAddPhoto(loc.id, dataUrl).then(function(photoId){
+            return {photoId:photoId, dataUrl:dataUrl};
+          });
+        }));
+      })
+      .then(function(newPhotos){
+        if(!photosCache[loc.id]) photosCache[loc.id] = [];
+        photosCache[loc.id] = photosCache[loc.id].concat(newPhotos);
+        render();
+        if(lbLoc && lbLoc.id === loc.id){ lbIdx = photosCache[loc.id].length - 1; renderLightbox(); }
+      })
+      .catch(function(){
+        updateStorageWarnBanner(100, true);
+      });
+  }
+
+  function removePhoto(loc, idx){
+    var photos = getLocPhotos(loc.id);
+    var target = photos[idx];
+    if(!target) return;
+    dbDeletePhoto(target.photoId).then(function(){
+      photosCache[loc.id].splice(idx, 1);
+      updateStorageUsageUI();
+    }).catch(function(){});
+  }
+
+  var lbLoc = null, lbIdx = 0;
+  var lightbox = document.getElementById('lightbox');
+
+  function openLightbox(loc, idx){
+    lbLoc = loc; lbIdx = idx;
+    document.getElementById('lbTitle').textContent = loc.name;
+    renderLightbox();
+    lightbox.classList.add('open');
+  }
+  function closeLightbox(){
+    lightbox.classList.remove('open');
+    lbLoc = null;
+  }
+  function renderLightbox(){
+    var photos = lbLoc ? getLocPhotos(lbLoc.id) : [];
+    if(!lbLoc || !photos.length){ closeLightbox(); return; }
+    if(lbIdx >= photos.length) lbIdx = photos.length - 1;
+    document.getElementById('lbTitle').textContent = lbLoc.name + ' · ' + (lbIdx+1) + '/' + photos.length;
+    document.getElementById('lbMainImg').src = photos[lbIdx].dataUrl;
+    var strip = document.getElementById('lbStrip');
+    strip.innerHTML = photos.map(function(p, i){
+      return '<img src="' + p.dataUrl + '" class="' + (i === lbIdx ? 'active' : '') + '" data-i="' + i + '">';
+    }).join('');
+    strip.querySelectorAll('img').forEach(function(img){
+      img.addEventListener('click', function(){ lbIdx = parseInt(img.getAttribute('data-i'),10); renderLightbox(); });
+    });
+  }
+  document.getElementById('lbClose').addEventListener('click', closeLightbox);
+  lightbox.addEventListener('click', function(e){ if(e.target === lightbox) closeLightbox(); });
+  document.getElementById('lbRemove').addEventListener('click', function(){
+    if(!lbLoc) return;
+    removePhoto(lbLoc, lbIdx);
+    renderBoard();
+    var remaining = getLocPhotos(lbLoc.id);
+    if(remaining.length){ renderLightbox(); }
+    else { closeLightbox(); }
+  });
+  document.getElementById('lbAdd').addEventListener('click', function(){
+    if(!lbLoc) return;
+    var inp = document.getElementById('evInput_' + lbLoc.id);
+    if(inp) inp.click();
+  });
+
+
+  function computeCounts(field, onlyOps){
+    var counts = {green:0,yellow:0,red:0,white:0};
+    LOCATIONS.forEach(function(l){
+      if(onlyOps && !l.hasOps) return;
+      var v = l[field];
+      if(v) counts[v]++;
+    });
+    return counts;
+  }
+
+  function renderRekap(){
+    var pCounts = computeCounts('p', false);
+    var aCounts = computeCounts('a', false);
+    var oCounts = computeCounts('o', true);
+    var grid = document.getElementById('rekapGrid');
+    function card(title, counts){
+      var total = counts.green + counts.yellow + counts.red + counts.white;
+      function row(emoji, label, val, color){
+        var pct = total ? Math.round((val/total)*100) : 0;
+        return '<div class="rekap-line"><span>' + emoji + ' ' + label + '</span>' +
+          '<span class="rekap-bar" style="color:' + color + '"><i style="width:' + pct + '%"></i></span>' +
+          '<span class="n">' + val + '</span></div>';
+      }
+      return '<div class="rekap-card"><div class="rekap-card-title">' + title + '</div>' +
+        row('🟢','Aman', counts.green, 'var(--accent)') +
+        row('🟡','Cek', counts.yellow, 'var(--warn)') +
+        row('🔴','Dampak', counts.red, 'var(--danger)') +
+        row('⚪','Belum', counts.white, 'var(--white-st)') +
+        '</div>';
+    }
+    grid.innerHTML = card('Personel', pCounts) + card('Aset/Fasilitas', aCounts) + card('Operasional', oCounts);
+  }
+
+  function render(){
+    renderBoard();
+    renderRekap();
+    updateStorageUsageUI();
+  }
+
+  document.getElementById('reloadWrs').addEventListener('click', function(){
+    var frame = document.getElementById('frameWrs');
+    var src = frame.src;
+    frame.src = '';
+    setTimeout(function(){ frame.src = src; }, 50);
+  });
+
+  document.getElementById('copyReport').addEventListener('click', function(){
+    var time = document.getElementById('updateTime').value;
+    var date = document.getElementById('updateDate').value;
+    var lines = [];
+    lines.push('*UPDATE MONITORING PERSONIL DAN ASET PASCA GEMPA BUMI FLORES*');
+    lines.push('*UIK DWIPANTARA – UPK FLORES*');
+    lines.push('');
+    lines.push('📅 ' + date);
+    lines.push('⏰ Update : Pukul ' + time);
+    lines.push('');
+    lines.push('*INFORMASI GEMPA*');
+    lines.push('* Gempa utama M7,0, kedalaman 10 km, pusat gempa 38 km Timur Laut Mbay, Nagekeo.');
+    lines.push('* Gempa susulan signifikan M6,2, kedalaman 10 km, pusat gempa 46 km Timur Laut Labuan Bajo.');
+    lines.push('');
+    lines.push('*STATUS MONITORING PERSONEL & ASET*');
+    lines.push('Keterangan: 🟢 Aman/Normal  🟡 Dalam pemeriksaan  🔴 Terdampak  ⚪ Menunggu konfirmasi');
+    lines.push('');
+
+    var counter = 1;
+    GROUP_ORDER.forEach(function(g){
+      var items = LOCATIONS.filter(function(l){ return l.group === g; });
+      if(!items.length) return;
+      lines.push('*' + g.toUpperCase() + '*');
+      items.forEach(function(loc){
+        var pE = STATUS_META[loc.p].emoji;
+        var aE = STATUS_META[loc.a].emoji;
+        var line = counter + '. ' + loc.name + '\n   👤 ' + pE + ' | 🏭 ' + aE;
+        if(loc.hasOps){ line += ' | ⚡ ' + STATUS_META[loc.o].emoji; }
+        var photoCount = getLocPhotos(loc.id).length;
+        if(photoCount){ line += ' | 📷 ' + photoCount + ' foto terlampir'; }
+        lines.push(line);
+        counter++;
+      });
+      lines.push('');
+    });
+
+    var pCounts = computeCounts('p', false);
+    var aCounts = computeCounts('a', false);
+    var oCounts = computeCounts('o', true);
+    lines.push('📊 *REKAP SEMENTARA*');
+    lines.push('');
+    lines.push('👥 *Personel*');
+    lines.push('🟢 Aman : ' + pCounts.green + ' lokasi');
+    lines.push('🟡 Pemeriksaan : ' + pCounts.yellow + ' lokasi');
+    lines.push('🔴 Terdampak : ' + pCounts.red + ' lokasi');
+    lines.push('⚪ Belum terkonfirmasi : ' + pCounts.white + ' lokasi');
+    lines.push('');
+    lines.push('🏭 *Aset/Fasilitas*');
+    lines.push('🟢 Normal : ' + aCounts.green + ' lokasi');
+    lines.push('🟡 Temuan minor/inspeksi : ' + aCounts.yellow + ' lokasi');
+    lines.push('🔴 Terdampak : ' + aCounts.red + ' lokasi');
+    lines.push('⚪ Belum terkonfirmasi : ' + aCounts.white + ' lokasi');
+    lines.push('');
+    lines.push('⚡ *Operasional Pembangkit*');
+    lines.push('🟢 Operasi normal : ' + oCounts.green + ' lokasi');
+    lines.push('🟡 Gangguan/derating : ' + oCounts.yellow + ' lokasi');
+    lines.push('🔴 Tidak beroperasi : ' + oCounts.red + ' lokasi');
+    lines.push('⚪ Belum terkonfirmasi : ' + oCounts.white + ' lokasi');
+    lines.push('');
+    lines.push('Demikian disampaikan, terima kasih.');
+    lines.push('Update akan disampaikan secara berkala.');
+    lines.push('');
+    lines.push('*UIK DWIPANTARA*');
+    lines.push('*BIDANG K3 DAN KEAMANAN*');
+
+    var text = lines.join('\n');
+    var btn = document.getElementById('copyReport');
+    function done(ok){
+      btn.textContent = ok ? 'Tersalin ✓' : 'Gagal menyalin — pilih manual';
+      setTimeout(function(){ btn.textContent = 'Salin sebagai teks laporan'; }, 1800);
+    }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(function(){ done(true); }).catch(function(){ done(false); });
+    } else {
+      done(false);
+    }
+  });
+
+  // First paint immediately with status data (photos load right after, from IndexedDB)
+  render();
+
+  // Load foto eviden from IndexedDB (async), migrate any old-format photos first, then re-render
+  migrateOldPhotosIfNeeded()
+    .then(function(){ return loadAllPhotosIntoCache(); })
+    .then(function(cache){
+      photosCache = cache;
+      render();
+    })
+    .catch(function(){
+      // IndexedDB unavailable/blocked (mis. mode privat di sebagian browser) — eviden foto dilewati,
+      // status personel/aset tetap berfungsi normal seperti biasa.
+      updateStorageUsageUI();
+    });
+})();
+</script>
+</body>
+</html>
